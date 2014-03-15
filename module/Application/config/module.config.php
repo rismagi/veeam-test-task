@@ -99,4 +99,35 @@ return array(
             ),
         ),
     ),
+    // Doctrine
+    'doctrine' => array(
+        'eventmanager' => array(
+            'orm_default' => array(
+                'subscribers' => array(
+                    'Gedmo\Timestampable\TimestampableListener',
+                    //'Gedmo\Translatable\TranslatableListener'
+                ),
+            ),
+        ),
+        'driver' => array(
+            'application_entities' => array(
+                'class' =>'Doctrine\ORM\Mapping\Driver\AnnotationDriver',
+                'cache' => 'array',
+                'paths' => array(__DIR__ . '/../src/Application/Entity')
+            ),
+            'translatable_entities' => array(
+                'class' => 'Doctrine\ORM\Mapping\Driver\AnnotationDriver',
+                'cache' => 'array',
+                'paths' => array(
+                    __DIR__ . '/../../../vendor/gedmo/doctrine-extensions/lib/Gedmo/Translatable/Entity'
+                ),
+            ),
+            'orm_default' => array(
+                'drivers' => array(
+                    'Application\Entity' => 'application_entities',
+                    'Gedmo\Translatable\Entity' => 'translatable_entities'
+                )
+            )
+        )
+    )
 );
