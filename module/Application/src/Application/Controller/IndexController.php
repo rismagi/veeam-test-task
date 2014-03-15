@@ -1,10 +1,6 @@
 <?php
 /**
- * Zend Framework (http://framework.zend.com/)
- *
- * @link      http://github.com/zendframework/ZendSkeletonApplication for the canonical source repository
- * @copyright Copyright (c) 2005-2014 Zend Technologies USA Inc. (http://www.zend.com)
- * @license   http://framework.zend.com/license/new-bsd New BSD License
+ * Index controller
  */
 
 namespace Application\Controller;
@@ -12,6 +8,7 @@ namespace Application\Controller;
 use Zend\Mvc\Controller\AbstractActionController;
 use Zend\View\Model\ViewModel;
 use Application\Entity\Vacancy;
+use Application\Form\FilterForm;
 
 class IndexController extends AbstractActionController
 {
@@ -19,34 +16,50 @@ class IndexController extends AbstractActionController
     {
         $objectManager = $this->getServiceLocator()->get('Doctrine\ORM\EntityManager');
 
-        $vacancies = $objectManager
-            ->getRepository('\Application\Entity\Vacancy')
-            ->findAll();
+        $filter = array();
+        $defaultLocale = $locale = 'en_US';
 
+        $form = new FilterForm($objectManager);
+        $request = $this->getRequest();
+        if ($request->isPost()) {
+            $data = $request->getPost();
+            $form->setData($data);
+            if (!empty($data['department'])) {
+                $filter['department'] = (int) $data['department'];
+            }
+            if (!empty($data['language'])) {
+                $langs = $objectManager->getRepository('\Application\Entity\Language')->findById((int) $data['language']);
+                if (isset($langs[0])) {
+                    $locale = $langs[0]->getLocale();
+                }
+            }
+        } else {
+            // Default language by locale
+            $langs = $objectManager->getRepository('\Application\Entity\Language')->findByLocale($locale);
+            if (isset($langs[0])) {
+                $form->get('language')->setValue($langs[0]->getId());
+            }
+        }
+        // Filter
+        $vacancyRepository = $objectManager->getRepository('\Application\Entity\Vacancy');
+        if (!empty($filter)) {
+            $vacancies = $vacancyRepository->findBy($filter);
+        } else {
+            $vacancies = $vacancyRepository->findAll();
+        }
+        // i18n
+        if ($defaultLocale != $locale) {
+            foreach($vacancies as $item) {
+                $item->setTranslatableLocale($locale);
+                $objectManager->refresh($item);
+            }
+        }
+        // Output
         $view = new ViewModel(array(
             'items' => $vacancies,
+            'form' => $form
         ));
 
         return $view;
-    }
-
-    public function addAction()
-    {
-        $objectManager = $this->getServiceLocator()->get('Doctrine\ORM\EntityManager');
-        $repository = $objectManager->getRepository('Gedmo\Translatable\Entity\Translation');
-
-        for($n = 1; $n < 10; $n++) {
-            $item = new Vacancy();
-            $item->setName('Vacancy EN ' . $n);
-            $item->setDescription('Vacancy EN description ' . $n);
-
-            $repository->translate($item, 'name', 'de_DE', 'Vacancy DE ' . $n)
-                ->translate($item, 'description', 'de_DE', 'Vacancy DE description ' . $n)
-                ->translate($item, 'name', 'ru_RU', 'Вакансия RU ' . $n)
-                ->translate($item, 'description', 'ru_RU', 'Описание RU вакансии ' . $n);
-
-            $objectManager->persist($item);
-        }
-        $objectManager->flush();
     }
 }
